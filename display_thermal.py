@@ -1,9 +1,8 @@
-
 import time
 import numpy as np
 import cv2
 import cmapy
-
+import constants as const
 class pithermalcam:
     _colormap_list=['jet','gnuplot2','coolwarm','bwr','seismic','PiYG_r','tab10','tab20','brg']
     _interpolation_list =[cv2.INTER_NEAREST,cv2.INTER_LINEAR,cv2.INTER_AREA,cv2.INTER_CUBIC,cv2.INTER_LANCZOS4,5,6]
@@ -18,7 +17,6 @@ class pithermalcam:
     _stoped= False
     _fps = 2
     frames = []
-
     def __init__(self, file_path,image_width:int=640, 
                 image_height:int=480):
         self.image_width=image_width
@@ -76,7 +74,6 @@ class pithermalcam:
         self._image = cv2.applyColorMap(self._raw_image, cmapy.cmap(self._colormap_list[self._colormap_index]))
         self._image = cv2.resize(self._image, (640,480), interpolation=self._interpolation_list[self._interpolation_index])
         self._image = cv2.flip(self._image, 0)
-
 
     def add_customized_text(self,text):
         """Add custom text to the center of the image, used mostly to notify user that server is off."""
@@ -147,5 +144,5 @@ class pithermalcam:
 
 if __name__ == "__main__":
     # If class is run as main, read ini and set up a live feed displayed to screen
-    thermcam = pithermalcam('.\data\\final_test2.txt')  # Instantiate class
+    thermcam = pithermalcam(const.P_EXPERIMENT_THERMAL)  # Instantiate class
     thermcam.display_camera_onscreen()

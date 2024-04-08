@@ -6,6 +6,7 @@ from PyQt5.QtGui import QPixmap, QImage
 import cv2
 from PyQt5.QtCore import QThread, pyqtSignal
 import numpy as np
+import constants as const 
 
 class ImageDisplayWidget(QWidget):
     def __init__(self,label):
@@ -18,7 +19,7 @@ class ImageDisplayWidget(QWidget):
         self.presence = False
         layout = QVBoxLayout(self)
         layout.addWidget(self.image_label)
-        self.thermal = pithermalcam('./data/outdoor_test.txt')
+        self.thermal = pithermalcam(const.P_EXPERIMENT_THERMAL)
     
         
     def update_image(self):

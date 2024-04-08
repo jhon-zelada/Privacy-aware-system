@@ -58,13 +58,12 @@ class ScatterPlotWidget(QWidget):
         self.paused = True
         self.pointclouds = {}
         self.coords = []
-        self.fileName = f'./log/{const.P_EXPERIMENT_FILE_READ}.csv'
-        self.fileNameTarget = f'./log/{const.P_EXPERIMENT_FILE_READ}_target.csv'
         # Create the 3D scatter plot widget
         self.plot_widget = GLViewWidget()
         self.plot_widget.opts['distance'] = 20
         self.plot_widget.opts['elevation'] = 30
         self.plot_widget.opts['azimuth'] = 45
+        
         self.read_data()
         self.curr_frame = min(self.pointclouds.keys())
 
@@ -99,7 +98,7 @@ class ScatterPlotWidget(QWidget):
         Reads stored data taken from mmWave sensor 
         
         """
-        with open(self.fileName, "r") as file:
+        with open(const.P_EXPERIMENT_POINTCLOUD_READ, "r") as file:
             csv_reader = csv.reader(file)
             for row in csv_reader:
                 framenum = int(row[0])
@@ -186,7 +185,7 @@ class ScatterPlotWidget(QWidget):
         x_corr = 12
         y_corr = 16
         
-        with open(self.fileNameTarget, "r") as file:
+        with open(const.P_EXPERIMENT_POINTCLOUD_TARGET, "r") as file:
             csv_reader = csv.reader(file)
             for row in csv_reader:
                 framenum = int(row[0])
@@ -224,7 +223,7 @@ class ImageDisplayWidget(QWidget):
         self.timestamp = 0
         layout = QVBoxLayout(self)
         layout.addWidget(self.image_label)
-        self.thermal = pithermalcam(f'./data/{const.P_EXPERIMENT_FILE_READ}.txt')
+        self.thermal = pithermalcam(const.P_EXPERIMENT_THERMAL)
         
         
     def update_image(self):

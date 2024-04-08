@@ -1,8 +1,5 @@
-
+import os 
 # Paths for stored data 
-P_EXPERIMENT_FILE_READ = "outdoor_test"
-P_EXPERIMENT_FILE_WRITE = "from_center_data.csv"
-
 
 # Paths and Ports
 P_CONFIG_PATH = "./config_cases/ISK_6m_default.cfg"
@@ -11,6 +8,24 @@ P_DATA_PATH = "./data/"
 
 P_CLI_PORT = "COM3"
 P_DATA_PORT = "COM4"
+
+FILE_NAME = "outdoor_test"
+P_EXPERIMENT_POINTCLOUD_READ= os.path.join(
+        P_LOG_PATH,
+        FILE_NAME+".csv")
+
+P_EXPERIMENT_THERMAL=  os.path.join(
+        P_DATA_PATH,
+        FILE_NAME+".txt")
+
+P_EXPERIMENT_POINTCLOUD_TARGET = os.path.join(
+                                P_LOG_PATH,
+                                FILE_NAME+"_target.csv")
+
+P_EXPERIMENT_POINTCLOUD_WRITE = "from_center_data.csv"
+
+
+
 
 # Sensor position 
 S_TILT_ANGLE = -46
