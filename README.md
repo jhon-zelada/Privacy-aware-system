@@ -20,5 +20,5 @@ This project aims to develop a sophisticated yet privacy-conscious system for ou
    ```
 3. Run the program to visualize stored data.
     ```sh
-    python3 ./src/offline_display.py
+    python3 ./offline_display.py
     ```
