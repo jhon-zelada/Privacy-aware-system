@@ -1,9 +1,9 @@
 import sys
 import numpy as np
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QGroupBox, QVBoxLayout, QWidget,QPushButton,
-                             QHBoxLayout,QSizePolicy,QSpacerItem,QGridLayout,QLabel)
+                             QHBoxLayout,QGridLayout,QLabel)
 from PyQt5.QtGui import QPixmap, QImage
-from pyqtgraph.opengl import GLViewWidget, GLScatterPlotItem, GLGridItem,GLAxisItem,GLBoxItem,GLLinePlotItem
+from pyqtgraph.opengl import GLViewWidget, GLScatterPlotItem, GLGridItem,GLAxisItem,GLLinePlotItem
 from PyQt5.QtCore import QTimer
 import pyqtgraph as pg
 from graphUtilities import * 
@@ -11,11 +11,50 @@ import csv
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from display_thermal import pithermalcam
 import cv2 
-import math
 
 f_name = 'outdoor_test'
 
 class ScatterPlotWidget(QWidget):
+    """
+
+    A class that creates the Widget to display the pointcloud
+
+    Attributes
+    ----------
+    scatter_item : GLScatterPlotItem or None
+        Creates an scatter item and draws them
+    
+    currTime: int
+        gets the time when a pointcloud was taken 
+    paused : bool
+        Used to pause the plot  of the  thermal images and the pointclouds
+    pointclouds : dict
+        dictionary that contain x,y,z and doppler
+    tilt : int
+        angle position of trhe mmWave sensor when taken the data
+    sensor_height: float
+        height of the sensor 
+    coords : ndarray
+        stores x,y,z and time from dictionary
+
+    Methods
+    -------
+    __init__()
+        Defines the atributes and the characteristics of the scatter widget
+    
+    read_data()
+        reads pointcloud data stored on a csv file 
+    
+    point_transform_to_standard_axis()
+        Transforms coordinates from mmWave frame to world coordinates
+    
+    update_points()
+        updates the scatterplot
+
+    proj3Dto2D()
+        projects 3D pointcloud into 2D thermal image
+    
+    """
     def __init__(self):
         super().__init__()
         self.scatter_item = None
@@ -62,6 +101,10 @@ class ScatterPlotWidget(QWidget):
         self.timer.start(120)  
 
     def read_data(self):
+        """
+        Reads stored data taken from mmWave sensor 
+        
+        """
         with open(self.fileName, "r") as file:
             csv_reader = csv.reader(file)
             for row in csv_reader:
@@ -85,6 +128,10 @@ class ScatterPlotWidget(QWidget):
                     }
    
     def point_transform_to_standard_axis(self):
+        """
+        Coordinate transformation from mmWaframe to real world frame, where the origin
+        is in the bloor bellow the mmWave sensor
+        """
         # Translation Matrix (T)
         T = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, self.sensor_height], [0, 0, 0, 1]])
         # Rotation Matrix (R_inv)
@@ -110,6 +157,10 @@ class ScatterPlotWidget(QWidget):
         )
 
     def update_points(self):
+        """
+        This method is used to iterate over the pointcloud, and plot the points 
+        one frame at the time
+        """
         if self.paused:
             return
         if self.scatter_item:
@@ -130,6 +181,9 @@ class ScatterPlotWidget(QWidget):
             self.timer.stop()
     
     def proj3Dto2D(self):
+        """
+        Makes a projection of the 3D pointcould into the thermal image frame
+        """
         yfov =np.deg2rad(55)
         xfov =np.deg2rad(35)
         ratio_x =12/np.tan(xfov/2)
@@ -151,7 +205,23 @@ class ScatterPlotWidget(QWidget):
 
  
 class ImageDisplayWidget(QWidget):
+    """
+    Widget for displaying thermal camera images with contours.
+
+    Attributes:
+        current_image_index (int): Index of the current image being displayed.
+        paused (bool): Flag indicating whether the image display is paused or not.
+        image_label (QLabel): QLabel to display the image.
+        timestamp (int): Timestamp associated with the current image.
+        thermal (pithermalcam): Instance of thermal camera.
+    """
     def __init__(self):
+        """
+        Initializes the ImageDisplayWidget.
+
+        Args:
+            None
+        """
         super().__init__()
         
         self.current_image_index = 0
@@ -162,9 +232,17 @@ class ImageDisplayWidget(QWidget):
         layout.addWidget(self.image_label)
         self.thermal = pithermalcam(f'./data/{f_name}.txt')
         
-
         
     def update_image(self):
+        """
+        Updates the displayed image.
+
+        Args:
+            None
+        
+        Returns:
+            None
+        """
         if self.paused:
             return 
         if self.current_image_index < len(self.thermal.frames):
@@ -188,10 +266,18 @@ class ImageDisplayWidget(QWidget):
             self.current_image_index += 1
         else:
             return
-            #self.current_image_index = 0
+            
 
     def find_contours(self,index):
+        """
+        Finds contours in the thermal image.
+
+        Args:
+            index (int): Index of the image frame.
         
+        Returns:
+            list: List of contours found in the image.
+        """
         reescaled=self.thermal._temps_to_rescaled_uints(self.thermal.foreground[index],0,8)
         image = np.resize(reescaled,(24,32))
         filtered_img = cv2.GaussianBlur(image,(3,3),0.1)
@@ -209,7 +295,6 @@ class ImageDisplayThread(QThread):
     def __init__(self):
         super().__init__()
         
-
     def run(self):
         while True:
             self.update_signal.emit()
@@ -217,6 +302,9 @@ class ImageDisplayThread(QThread):
 
 
 class MainWindow(QMainWindow):
+    """
+    Main window class for the application.
+    """
     def __init__(self):
         super().__init__()
         self.setWindowTitle("3D Scatter Plot and Thermal Display")
@@ -257,6 +345,9 @@ class MainWindow(QMainWindow):
         self.image_thread.start()
     
     def start_plotting(self):
+        """
+        Starts or pauses the plotting process based on the current state.
+        """
         if self.scatter_plot_widget.paused:
             self.scatter_plot_widget.paused = False 
             self.image_display_widget.paused = False
@@ -267,6 +358,9 @@ class MainWindow(QMainWindow):
             self.start_button.setText('Continue')
 
     def graph_done(self):
+        """
+        Updates statistics and image display when the image display thread completes.
+        """
         self.image_display_widget.update_image()
         self.framemmWave.setText('mmWave Frame:'+str(self.scatter_plot_widget.curr_frame))
         self.frameThermal.setText('Thermal Frame:'+str(self.image_display_widget.current_image_index))
@@ -275,6 +369,10 @@ class MainWindow(QMainWindow):
 
 
     def setStatsLayout(self):
+        """
+        Sets up the layout for displaying point cloud statistics.
+
+        """
         self.statBox = QGroupBox('PointCloud statistics')
         self.framemmWave = QLabel('mmWave Frame: 0')
         self.TimemmWave = QLabel('Time mmWave: 0 ms')
