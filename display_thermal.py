@@ -2,9 +2,7 @@
 import time
 import numpy as np
 import cv2
-
 import cmapy
-
 
 class pithermalcam:
     _colormap_list=['jet','gnuplot2','coolwarm','bwr','seismic','PiYG_r','tab10','tab20','brg']

@@ -11,8 +11,8 @@ import csv
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from display_thermal import pithermalcam
 import cv2 
+import constants as const
 
-f_name = 'outdoor_test'
 
 class ScatterPlotWidget(QWidget):
     """
@@ -30,10 +30,6 @@ class ScatterPlotWidget(QWidget):
         Used to pause the plot  of the  thermal images and the pointclouds
     pointclouds : dict
         dictionary that contain x,y,z and doppler
-    tilt : int
-        angle position of trhe mmWave sensor when taken the data
-    sensor_height: float
-        height of the sensor 
     coords : ndarray
         stores x,y,z and time from dictionary
 
@@ -61,11 +57,9 @@ class ScatterPlotWidget(QWidget):
         self.currTime = 0
         self.paused = True
         self.pointclouds = {}
-        self.tilt = -46
-        self.sensor_height = 4.1
         self.coords = []
-        self.fileName = f'./log/{f_name}.csv'
-        self.fileNameTarget = f'./log/{f_name}_target.csv'
+        self.fileName = f'./log/{const.P_EXPERIMENT_FILE_READ}.csv'
+        self.fileNameTarget = f'./log/{const.P_EXPERIMENT_FILE_READ}_target.csv'
         # Create the 3D scatter plot widget
         self.plot_widget = GLViewWidget()
         self.plot_widget.opts['distance'] = 20
@@ -133,9 +127,9 @@ class ScatterPlotWidget(QWidget):
         is in the bloor bellow the mmWave sensor
         """
         # Translation Matrix (T)
-        T = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, self.sensor_height], [0, 0, 0, 1]])
+        T = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, const.S_HEIGHT], [0, 0, 0, 1]])
         # Rotation Matrix (R_inv)
-        ang_rad = np.deg2rad(self.tilt)
+        ang_rad = np.deg2rad(const.S_TILT_ANGLE)
         R_inv = np.array(
             [
                 [1, 0, 0, 0],
@@ -230,7 +224,7 @@ class ImageDisplayWidget(QWidget):
         self.timestamp = 0
         layout = QVBoxLayout(self)
         layout.addWidget(self.image_label)
-        self.thermal = pithermalcam(f'./data/{f_name}.txt')
+        self.thermal = pithermalcam(f'./data/{const.P_EXPERIMENT_FILE_READ}.txt')
         
         
     def update_image(self):

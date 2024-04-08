@@ -1,24 +1,9 @@
 import struct
-import sys
 import serial
-import binascii
 import time
 import numpy as np
 import math
 
-
-
-#Initialize this Class to create a UART Parser. Initialization takes one argument:
-# 1: String Lab_Type - These can be:
-#   a. 3D People Counting
-#   b. SDK Out of Box Demo
-#   c. Long Range People Detection
-#   d. Indoor False Detection Mitigation
-#   e. (Legacy): Overhead People Counting
-#   f. (Legacy) 2D People Counting
-# Default is (f). Once initialize, call connectComPorts(self, UartComPort, DataComPort) to connect to device com ports.
-# Then call readAndParseUart() to read one frame of data from the device. The gui this is packaged with calls this every frame period.
-# readAndParseUart() will return all radar detection and tracking information.
 class uartParserSDK():
     def __init__(self,configFileName, CLIport, Dataport,type='3D People Counting'):
         self.configFileName = configFileName
@@ -70,11 +55,6 @@ class uartParserSDK():
         self.printVerbosity = 0 #set 0 for limited logFile printing, 1 for more logging
         
         if (self.capon3D):
-            #3D people counting format
-            #[frame #][header,pt cloud data,target info]
-            #[][header][magic, version, packetLength, platform, frameNum, subFrameNum, chirpMargin, frameMargin, uartSentTime, trackProcessTime, numTLVs, checksum]
-            #[][pt cloud][pt index][#elev, azim, doppler, range, snr]
-            #[][target][Target #][TID,x,y,z,vx,vy,vz,ax,ay,az]
             self.textStructCapon3D = np.zeros(1000*3*self.maxPoints*10).reshape((1000,3,self.maxPoints,10))#[frame #][header,pt cloud data,target info]
 
 
@@ -253,23 +233,6 @@ class uartParserSDK():
             return
         self.polar2CartSDK3()
 
-    #decode 3D People Counting Target List TLV
-
-    #3D Struct format
-    
-    #uint32_t     tid;     /*! @brief   tracking ID */
-    #float        posX;    /*! @brief   Detected target X coordinate, in m */
-    #float        posY;    /*! @brief   Detected target Y coordinate, in m */
-    #float        posZ;    /*! @brief   Detected target Z coordinate, in m */
-    #float        velX;    /*! @brief   Detected target X velocity, in m/s */
-    ##float       velY;    /*! @brief   Detected target Y velocity, in m/s */
-    #float        velZ;    /*! @brief   Detected target Z velocity, in m/s */
-    #float        accX;    /*! @brief   Detected target X acceleration, in m/s2 */
-    #float        accY;    /*! @brief   Detected target Y acceleration, in m/s2 */
-    #float        accZ;    /*! @brief   Detected target Z acceleration, in m/s2 */
-    #float        ec[16];  /*! @brief   Target Error covarience matrix, [4x4 float], in row major order, range, azimuth, elev, doppler */
-    #float        g;
-    #float        confidenceLevel;    /*! @brief   Tracker confidence metric*/
 
     def parseDetectedTracksSDK3x(self, data, tlvLength):
         if (self.printVerbosity == 1):
