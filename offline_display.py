@@ -11,6 +11,7 @@ import csv
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from display_thermal import pithermalcam
 import cv2 
+import numpy as np
 import constants as const
 
 
@@ -108,7 +109,7 @@ class ScatterPlotWidget(QWidget):
 
                 if framenum in self.pointclouds:
                     # Append coordinates to the existing lists
-                    for key, value in zip(["x", "y", "z", "doppler"],  world_coords):
+                    for key, value in zip(["x", "y", "z", "doppler","time"],  world_coords):
                         self.pointclouds[framenum][key].append(value)
                 else:
                     # If not, create a new dictionary for the framenum
@@ -119,6 +120,10 @@ class ScatterPlotWidget(QWidget):
                         "doppler": [ self.coords[3]],
                         "time": [self.coords[4]],
                     }
+        self.time_pointcloud = [x["time"][0] for x in self.pointclouds.values()]
+        self.frames_poincloud = [x for x in self.pointclouds]
+        
+
    
     def point_transform_to_standard_axis(self):
         """
@@ -148,12 +153,13 @@ class ScatterPlotWidget(QWidget):
                 self.coords[3],
             ]
         )
-
+    
     def update_points(self):
         """
         This method is used to iterate over the pointcloud, and plot the points 
         one frame at the time
         """
+        
         if self.paused:
             return
         if self.scatter_item:
@@ -220,10 +226,10 @@ class ImageDisplayWidget(QWidget):
         self.current_image_index = 0
         self.paused = True
         self.image_label = QLabel()
-        self.timestamp = 0
         layout = QVBoxLayout(self)
         layout.addWidget(self.image_label)
         self.thermal = pithermalcam(const.P_EXPERIMENT_THERMAL)
+        self.time_thermal = self.thermal.timestamps
         
         
     def update_image(self):
@@ -240,16 +246,16 @@ class ImageDisplayWidget(QWidget):
             return 
         if self.current_image_index < len(self.thermal.frames):
             self.thermal.mlx = self.thermal.frames[self.current_image_index]
-            self.timestamp = self.thermal.timestamps[self.current_image_index]
             self.thermal.update_image_frame()
             image = self.thermal._image
             contours = self.find_contours(self.current_image_index)
+            minArea = 3
             for cntr in contours:
-                if cv2.contourArea(cntr)>3:
+                if cv2.contourArea(cntr)>minArea:
                     self.presence = True
                     x,y,w,h = cv2.boundingRect(cntr)
                     cv2.rectangle(image, (20*x, 20*y), (20*x+20*w, 20*y+20*h), (0, 0, 255), 2)
-                    print("x,y,w,h:",x,y,w,h)
+                    #print("x,y,w,h:",x,y,w,h)
             
             text  =  'Frame: '+str(self.current_image_index)
             image= cv2.putText(image, text, (20,30), cv2.FONT_HERSHEY_SIMPLEX , 1.0, (255,255,255), 2, cv2.LINE_AA)
@@ -291,7 +297,7 @@ class ImageDisplayThread(QThread):
     def run(self):
         while True:
             self.update_signal.emit()
-            self.msleep(1000)  # Wait for 1 second
+            self.msleep(700)  # Wait for 1 second
 
 
 class MainWindow(QMainWindow):
@@ -336,6 +342,7 @@ class MainWindow(QMainWindow):
         self.image_thread = ImageDisplayThread()
         self.image_thread.update_signal.connect(self.graph_done)
         self.image_thread.start()
+        self.time_sync()
     
     def start_plotting(self):
         """
@@ -358,7 +365,7 @@ class MainWindow(QMainWindow):
         self.framemmWave.setText('mmWave Frame:'+str(self.scatter_plot_widget.curr_frame))
         self.frameThermal.setText('Thermal Frame:'+str(self.image_display_widget.current_image_index))
         self.TimemmWave.setText('Time mmWave:'+str(self.scatter_plot_widget.currTime))
-        self.TimeThermal.setText('Time thermal:'+ str(self.image_display_widget.timestamp))
+        self.TimeThermal.setText('Time thermal:'+ str(self.image_display_widget.time_thermal[self.image_display_widget.current_image_index]))
 
 
     def setStatsLayout(self):
@@ -378,6 +385,18 @@ class MainWindow(QMainWindow):
         self.statsLayout.addWidget(self.TimeThermal)
         self.statBox.setFixedHeight(50)
         self.statBox.setLayout(self.statsLayout)
+    
+    def find_time_indixes(self):
+        pointcloud_time = np.array(self.scatter_plot_widget.time_pointcloud)
+        thermal_time= np.array(self.image_display_widget.time_thermal)
+        self.index_list = []
+        for t in thermal_time:
+            self.index_list.append(np.argmin(np.abs(pointcloud_time-t)))
+    
+    def time_sync(self):
+        self.scatter_plot_widget.frames_poincloud
+                
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

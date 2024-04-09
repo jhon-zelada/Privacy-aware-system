@@ -6,21 +6,20 @@ import time
 from threading import Thread
 import sys
 import numpy as np
-import os
 
 
 from display_thermal import pithermalcam
-
-path = '.\data'
-fileName = 'outdoor_test.txt'
+import constants as const 
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(498, 522)
+
         self.mw  = MainWindow
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
+
         self.gridLayout_2 = QtWidgets.QGridLayout(self.centralwidget)
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.horizontalLayout = QtWidgets.QHBoxLayout()
@@ -44,10 +43,6 @@ class Ui_MainWindow(object):
         self.gridLayout = QtWidgets.QGridLayout()
         self.gridLayout.setObjectName("gridLayout")
 
-        #self.label_2 = QtWidgets.QLabel(self.centralwidget)
-        #self.label_2.setAlignment(QtCore.Qt.AlignCenter)
-        #self.label_2.setObjectName("label_2")
-        #self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
 
         self.label_3 = QtWidgets.QLabel(self.centralwidget)
         self.label_3.setAlignment(QtCore.Qt.AlignCenter)
@@ -72,15 +67,11 @@ class Ui_MainWindow(object):
         spacerItem = QtWidgets.QSpacerItem(313, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.gridLayout_2.addItem(spacerItem, 1, 1, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
-        #self.statusbar = QtWidgets.QStatusBar(MainWindow)
-        #self.statusbar.setObjectName("statusbar")
-        #MainWindow.setStatusBar(self.statusbar)
+
 
         self.retranslateUi(MainWindow)
 
-
         self.th = {}
-
         self.pause = False 
         self.pushButton.clicked.connect(self.pause_video) 
         self.pushButton_2.clicked.connect(self.run_threads)
@@ -93,7 +84,7 @@ class Ui_MainWindow(object):
         self.started = False
         self.started2 = False
 
-        self.thermcam = pithermalcam(os.path.join(path,fileName))  # Instantiate class
+        self.thermcam = pithermalcam(const.P_EXPERIMENT_THERMAL)  # Instantiate class
 
     def pause_video(self):
         if self.pause:
@@ -117,8 +108,9 @@ class Ui_MainWindow(object):
         self.th['pushButton_3'].start()
         
     def loadThermal(self):
-        """ This function will display a thermal image that has been taken by,
-            the thermal array 
+        """ 
+        This function will display a thermal image that has been taken by,
+        the thermal array 
         """
         if self.started:
             self.started=False
@@ -135,7 +127,6 @@ class Ui_MainWindow(object):
             self.update(image,self.label,i)
             
             time.sleep(0.5)
-            key = cv2.waitKey(1) & 0xFF
 
             while (self.pause):
                 self.update(image,self.label,i)
@@ -143,9 +134,6 @@ class Ui_MainWindow(object):
             if self.started==False:
                 break
                 
-    
-    def calibration(self,frame):
-        self.bg = np.mean(frame[0:5], axis= 0)
 
     def loadImage2(self):
         """ This function will display a thermal image that has been taken by,
@@ -160,31 +148,25 @@ class Ui_MainWindow(object):
             self.pushButton_2.setText('Stop')
         
         
-        thermcam2 = pithermalcam(os.path.join(path,fileName))
-
-        #self.calibration(thermcam2.frames)
+        thermcam2 = pithermalcam(const.P_EXPERIMENT_THERMAL)
 
         thermcam2.background_extraction()
 
         for i,frame in enumerate(thermcam2.foreground):
-            #f_diff = np.abs(frame - self.bg)
             thermcam2.mlx =frame 
             thermcam2._raw_image=thermcam2._temps_to_rescaled_uints(thermcam2.mlx,0,8)
-            #thermcam2._pull_raw_image()
+
             image = np.resize(thermcam2._raw_image,(24,32))
             thermcam2._raw_image = cv2.GaussianBlur(image,(3,3),0.1)
             
-            #thermcam2._process_raw_image()
             image =cv2.resize(thermcam2._raw_image, (640,480), interpolation=cv2.INTER_AREA)
             image = cv2.flip(image, 0)
 
             self.setGray(image,self.label_4,i)
-            #self.update(image,self.label_4,i)
             time.sleep(0.5)
 
             while (self.pause):
                 self.setGray(image,self.label_4,i)
-                #self.update(image,self.label_4,i)
 
             if self.started2==False:
                 break
@@ -202,13 +184,10 @@ class Ui_MainWindow(object):
 
     def setGray(self,image,label,frame):
         
-        gray_image = image#cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray_image = image
         _, img =cv2.threshold(gray_image, 50, 255, cv2.THRESH_BINARY)
-        # kernel = np.ones((11,11),np.uint8)
-        # img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
         text  =  'Frame: '+str(frame)
         img= cv2.putText(img, text, (20,30), cv2.FONT_HERSHEY_SIMPLEX , 1.0, (255,255,255), 2, cv2.LINE_AA) 
-        
         time.sleep(0.3)
         image = QImage(img, 640, 480, QImage.Format_Grayscale8)
         label.setPixmap(QtGui.QPixmap.fromImage(image))
@@ -234,14 +213,8 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Display of sensors"))
         self.pushButton_2.setText(_translate("MainWindow", "Start"))
-        #self.pushButton_3.setText(_translate("MainWindow", "Start2"))
         self.pushButton.setText(_translate("MainWindow", "Pause"))
     
-
-# Subscribe to PyShine Youtube channel for more detail! 
-
-# WEBSITE: www.pyshine.com
-
 
 if __name__ == "__main__":
     import sys
