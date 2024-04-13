@@ -13,7 +13,7 @@ from display_thermal import pithermalcam
 import cv2 
 import numpy as np
 import constants as const
-
+import cmapy
 
 class ScatterPlotWidget(QWidget):
     """
@@ -47,9 +47,6 @@ class ScatterPlotWidget(QWidget):
     
     update_points()
         updates the scatterplot
-
-    proj3Dto2D()
-        projects 3D pointcloud into 2D thermal image
     
     """
     def __init__(self):
@@ -120,6 +117,7 @@ class ScatterPlotWidget(QWidget):
                         "doppler": [ self.coords[3]],
                         "time": [self.coords[4]],
                     }
+        
         self.time_pointcloud = [x["time"][0] for x in self.pointclouds.values()]
         self.frames_poincloud = [x for x in self.pointclouds]
         
@@ -175,34 +173,9 @@ class ScatterPlotWidget(QWidget):
             #print("Frame not found")
 
         self.curr_frame = self.curr_frame+1
-
         if self.curr_frame>max(list(self.pointclouds.keys())):
             self.timer.stop()
-    
-    def proj3Dto2D(self):
-        """
-        Makes a projection of the 3D pointcould into the thermal image frame
-        """
-        yfov =np.deg2rad(55)
-        xfov =np.deg2rad(35)
-        ratio_x =12/np.tan(xfov/2)
-        ratio_y =16/np.tan(yfov/2)
-        desp = 0.01
-        x_corr = 12
-        y_corr = 16
         
-        with open(const.P_EXPERIMENT_POINTCLOUD_TARGET, "r") as file:
-            csv_reader = csv.reader(file)
-            for row in csv_reader:
-                framenum = int(row[0])
-                target_coords = [float(row[1]), float(row[2]), float(row[3])]
-
-
-        cords_2D=np.array([target_coords[0]*ratio_x/target_coords[2]+x_corr,
-                           target_coords[1]*ratio_y/target_coords[2]+y_corr]) 
-        return cords_2D
-
- 
 class ImageDisplayWidget(QWidget):
     """
     Widget for displaying thermal camera images with contours.
@@ -230,7 +203,9 @@ class ImageDisplayWidget(QWidget):
         layout.addWidget(self.image_label)
         self.thermal = pithermalcam(const.P_EXPERIMENT_THERMAL)
         self.time_thermal = self.thermal.timestamps
-        
+        self.target_coords = []
+        self.time_target = []
+        self.time_distance()
         
     def update_image(self):
         """
@@ -245,18 +220,9 @@ class ImageDisplayWidget(QWidget):
         if self.paused:
             return 
         if self.current_image_index < len(self.thermal.frames):
-            self.thermal.mlx = self.thermal.frames[self.current_image_index]
-            self.thermal.update_image_frame()
-            image = self.thermal._image
-            contours = self.find_contours(self.current_image_index)
-            minArea = 3
-            for cntr in contours:
-                if cv2.contourArea(cntr)>minArea:
-                    self.presence = True
-                    x,y,w,h = cv2.boundingRect(cntr)
-                    cv2.rectangle(image, (20*x, 20*y), (20*x+20*w, 20*y+20*h), (0, 0, 255), 2)
-                    #print("x,y,w,h:",x,y,w,h)
-            
+            norm= self.thermal.foreground[self.current_image_index]
+            image = self.find_contours(self.current_image_index,norm)
+            image = self.draw_target_box(self.current_image_index,image)
             text  =  'Frame: '+str(self.current_image_index)
             image= cv2.putText(image, text, (20,30), cv2.FONT_HERSHEY_SIMPLEX , 1.0, (255,255,255), 2, cv2.LINE_AA)
             frame = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -264,10 +230,11 @@ class ImageDisplayWidget(QWidget):
             self.image_label.setPixmap(QPixmap.fromImage(image))
             self.current_image_index += 1
         else:
+            self.current_image_index -=1
             return
             
 
-    def find_contours(self,index):
+    def find_contours(self,index,norm):
         """
         Finds contours in the thermal image.
 
@@ -276,18 +243,78 @@ class ImageDisplayWidget(QWidget):
         
         Returns:
             list: List of contours found in the image.
+
         """
-        reescaled=self.thermal._temps_to_rescaled_uints(self.thermal.foreground[index],0,8)
-        image = np.resize(reescaled,(24,32))
-        filtered_img = cv2.GaussianBlur(image,(3,3),0.1)
-        _, img =cv2.threshold(filtered_img, 50, 255, cv2.THRESH_BINARY)
-        kernel = np.ones((3,3),np.uint8)
-        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-        img = cv2.flip(img, 0)
+        norm = cv2.flip(norm, 0)
+        kernel = np.ones((3,3))
+
+        #norm = cv2.medianBlur(norm,3)
+        norm = cv2.dilate(norm,kernel)
+        norm = cv2.GaussianBlur(norm,(3,3),0.7)
+        norm =cv2.resize(norm, (640,480), interpolation=cv2.INTER_AREA)
+        _, img =cv2.threshold(norm, 160, 255, cv2.THRESH_BINARY)
+        image = cv2.applyColorMap(norm, cmapy.cmap('coolwarm'))
+        #self.thermal.update_image_frame()
+        #image = self.thermal._image
         contours = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = contours[0] if len(contours) == 2 else contours[1]
-        return contours
+        #contours = self.find_contours(self.current_image_index)
+        minArea = 50
+        for cntr in contours:
+            if cv2.contourArea(cntr)>minArea:
+                x,y,w,h = cv2.boundingRect(cntr)
+                cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                #print("x,y,w,h:",x,y,w,h)
+        return image
 
+    def read_target_data(self):
+
+        with open(const.P_EXPERIMENT_POINTCLOUD_TARGET, "r") as file:
+            csv_reader = csv.reader(file)
+            for row in csv_reader:
+                framenum = int(row[0])
+                self.target_coords=np.append(self.target_coords,[float(row[1]), float(row[2]), float(row[3])])
+                self.time_target =np.append(self.time_target,float(row[5])) 
+        self.target_coords=np.resize(self.target_coords,(int(len(self.target_coords)),3))
+        
+    
+    def time_distance(self):
+        self.read_target_data()
+        self.target_coords_sync = []
+        for t in self.thermal.timestamps:
+            dist =np.abs(self.time_target-t)
+            dist_min = np.min(dist)
+            dist_min_index = np.argmin(dist)
+            
+            if dist_min <0.5:
+                sync_t= True
+            else:
+                sync_t= False
+            self.target_coords_sync.append([sync_t,self.time_target[dist_min_index],self.target_coords[dist_min_index]])
+            #print("The times are:",sync_t,t,self.time_target[dist_min_index])
+    def proj3Dto2D(self,target_coords):
+        """
+        Makes a projection of the 3D pointcould targets into the thermal image frame
+        """
+        yfov =np.deg2rad(55)
+        xfov =np.deg2rad(35)
+        ratio_x =12/np.tan(xfov/2)
+        ratio_y =16/np.tan(yfov/2)
+        x_corr = 410
+        y_corr = 220
+        
+        cords_2D=np.array([20*target_coords[0]*ratio_x/np.sqrt(target_coords[1]**2+target_coords[2]**2)+x_corr,
+                           20*target_coords[2]*ratio_y/target_coords[1]+y_corr]) 
+        return cords_2D
+    
+    def draw_target_box(self,index,image):
+        #print(self.target_coords_sync)
+        if self.target_coords_sync[index][0]:
+            x_cent,y_cent = self.proj3Dto2D(self.target_coords_sync[index][2])
+            print('Draw rectangle: ',self.target_coords_sync[index][0],self.target_coords_sync[index][1],(int(x_cent - 10*4),int(y_cent -10*3)),(int(x_cent+10*4),int(y_cent+10*3)))
+            cv2.rectangle(image, (int(x_cent - 10*4),int(y_cent -10*3)),(int(x_cent+10*4),int(y_cent+10*3)), (255, 255,255), 2)
+        return image
+    
 class ImageDisplayThread(QThread):
     update_signal = pyqtSignal()
 
@@ -297,7 +324,7 @@ class ImageDisplayThread(QThread):
     def run(self):
         while True:
             self.update_signal.emit()
-            self.msleep(700)  # Wait for 1 second
+            self.msleep(700)  # Wait for 0.7 second
 
 
 class MainWindow(QMainWindow):
@@ -342,7 +369,7 @@ class MainWindow(QMainWindow):
         self.image_thread = ImageDisplayThread()
         self.image_thread.update_signal.connect(self.graph_done)
         self.image_thread.start()
-        self.time_sync()
+        
     
     def start_plotting(self):
         """
@@ -386,7 +413,7 @@ class MainWindow(QMainWindow):
         self.statBox.setFixedHeight(50)
         self.statBox.setLayout(self.statsLayout)
     
-    def find_time_indixes(self):
+    def find_time_indices(self):
         pointcloud_time = np.array(self.scatter_plot_widget.time_pointcloud)
         thermal_time= np.array(self.image_display_widget.time_thermal)
         self.index_list = []
@@ -394,7 +421,11 @@ class MainWindow(QMainWindow):
             self.index_list.append(np.argmin(np.abs(pointcloud_time-t)))
     
     def time_sync(self):
-        self.scatter_plot_widget.frames_poincloud
+        self.find_time_indices()
+        self.pointclud_sync = {}
+        for i,index in enumerate(self.index_list):
+            self.pointclud_sync[i]= self.scatter_plot_widget.pointclouds[self.scatter_plot_widget.frames_poincloud[index]]
+        print(self.pointclud_sync)
                 
 
 
