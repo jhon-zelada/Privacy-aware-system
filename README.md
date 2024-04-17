@@ -7,10 +7,18 @@ This project aims to develop a sophisticated yet privacy-conscious system for ou
 **Thermal Array Sensor:** Integration of a thermal array sensor to complement mmWave technology, providing additional data points for enhanced detection accuracy, particularly in low-light or challenging visual conditions.
 
 ## Scripts general description:
-**therma_logging:** Script executed on a raspberry to read data from the thermal array
-**offline_display:** Script used for data visualization for thermal and mmWave
-**ReadDataIWR6843ISK:** Script used to parse and read data from mmWave
-**DataLogging_IWR6843:** Stores the data from mmWave radar to preprocess and display.
+### **thermal_logging:**
+Script executed on a raspberry to read data from the thermal array
+
+### **offline_display:** 
+Script used for data visualization for thermal and mmWave
+
+### **ReadDataIWR6843ISK:** 
+Script used to parse and read data from mmWave
+
+### **DataLogging_IWR6843:** 
+Stores the data from mmWave radar to preprocess and display.
+
 ## Getting Started
 ### Installation and Execution
 
