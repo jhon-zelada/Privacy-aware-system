@@ -9,7 +9,7 @@ import numpy as np
 
 
 from display_thermal import pithermalcam
-import constants as const 
+import tools.constants as const 
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):

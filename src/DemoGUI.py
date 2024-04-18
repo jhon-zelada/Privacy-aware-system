@@ -6,7 +6,7 @@ from PyQt5.QtGui import QPixmap, QImage
 import cv2
 from PyQt5.QtCore import QThread, pyqtSignal
 import numpy as np
-import constants as const 
+import tools.constants as const 
 
 class ImageDisplayWidget(QWidget):
     def __init__(self,label):

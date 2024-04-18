@@ -6,13 +6,13 @@ from PyQt5.QtGui import QPixmap, QImage
 from pyqtgraph.opengl import GLViewWidget, GLScatterPlotItem, GLGridItem,GLAxisItem,GLLinePlotItem
 from PyQt5.QtCore import QTimer
 import pyqtgraph as pg
-from graphUtilities import * 
+from tools.graphUtilities import * 
 import csv
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from display_thermal import pithermalcam
 import cv2 
 import numpy as np
-import constants as const
+import tools.constants as const
 import cmapy
 
 class ScatterPlotWidget(QWidget):
@@ -223,8 +223,10 @@ class ImageDisplayWidget(QWidget):
             norm= self.thermal.foreground[self.current_image_index]
             image = self.find_contours(self.current_image_index,norm)
             image = self.draw_target_box(self.current_image_index,image)
+            image = self.draw_legend(image)
+
             text  =  'Frame: '+str(self.current_image_index)
-            image= cv2.putText(image, text, (20,30), cv2.FONT_HERSHEY_SIMPLEX , 1.0, (255,255,255), 2, cv2.LINE_AA)
+            image= cv2.putText(image, text, (20,30), cv2.FONT_HERSHEY_SIMPLEX , 0.8, (0,0,0), 2, cv2.LINE_AA)
             frame = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image = QImage(frame, frame.shape[1],frame.shape[0],frame.strides[0],QImage.Format_RGB888)
             self.image_label.setPixmap(QPixmap.fromImage(image))
@@ -286,7 +288,7 @@ class ImageDisplayWidget(QWidget):
             dist_min = np.min(dist)
             dist_min_index = np.argmin(dist)
             
-            if dist_min <0.5:
+            if dist_min <0.23:
                 sync_t= True
             else:
                 sync_t= False
@@ -312,9 +314,20 @@ class ImageDisplayWidget(QWidget):
         if self.target_coords_sync[index][0]:
             x_cent,y_cent = self.proj3Dto2D(self.target_coords_sync[index][2])
             print('Draw rectangle: ',self.target_coords_sync[index][0],self.target_coords_sync[index][1],(int(x_cent - 10*4),int(y_cent -10*3)),(int(x_cent+10*4),int(y_cent+10*3)))
-            cv2.rectangle(image, (int(x_cent - 10*4),int(y_cent -10*3)),(int(x_cent+10*4),int(y_cent+10*3)), (255, 255,255), 2)
+            cv2.rectangle(image, (int(x_cent - 10*4),int(y_cent -10*3)),(int(x_cent+10*4),int(y_cent+10*3)), (255, 0,0), 2)
+        
         return image
-    
+    def draw_legend(self,image):
+        text = "mmWave"
+        cv2.rectangle(image, (500,12),(510,22), (255, 0,0), -1)
+        cv2.putText(image, text, (515,22), cv2.FONT_HERSHEY_SIMPLEX , 0.7, (0,0,0), 1, cv2.LINE_AA)
+        
+        text = "thermal"
+        cv2.rectangle(image, (500,30),(510,40), (0, 0,255), -1)
+        cv2.putText(image, text, (515,40), cv2.FONT_HERSHEY_SIMPLEX , 0.7, (0,0,0), 1, cv2.LINE_AA)
+
+        return image 
+
 class ImageDisplayThread(QThread):
     update_signal = pyqtSignal()
 

@@ -2,8 +2,8 @@ import time
 import numpy as np
 import cv2
 import cmapy
-import constants as const
-from GaussianModel import GMM
+import tools.constants as const
+from tools.GaussianModel import GMM
 class pithermalcam:
     _colormap_list=['jet','gnuplot2','coolwarm','bwr','seismic','PiYG_r','tab10','tab20','brg']
     _interpolation_list =[cv2.INTER_NEAREST,cv2.INTER_LINEAR,cv2.INTER_AREA,cv2.INTER_CUBIC,cv2.INTER_LANCZOS4,5,6]
@@ -135,7 +135,6 @@ class pithermalcam:
 
     def _temps_to_rescaled_uints(self,f,Tmin,Tmax):
         """Function to convert temperatures to pixels on image"""
-
         f=np.nan_to_num(f)
         norm = np.uint8((f - Tmin)*255/(Tmax-Tmin))
         norm.shape = (24,32)
@@ -167,8 +166,6 @@ class pithermalcam:
         self._frame_diff= np.uint8(self._frame_diff*255/4)
         self.foreground = self._frame_diff.reshape((self._frame_diff.shape[0],24,32))
         
-
-
     def display_camera_onscreen(self):
         # Loop to display frames unless/until user requests exit
         while not self._exit_requested:
